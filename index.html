@@ -1,0 +1,256 @@
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>ABO ONLINE</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#29435a,#101827 65%,#070b13);color:white;font-family:Arial,sans-serif;text-align:center;padding:15px}
+h1{font-size:clamp(42px,9vw,70px);letter-spacing:5px;color:#ffe17b;text-shadow:0 4px 0 #9c451c,0 0 25px #ff9d27;margin:15px}
+h2{color:#ffe17b}
+.panel{max-width:650px;margin:20px auto;padding:22px;background:linear-gradient(145deg,#293e54,#111b2a);border:1px solid #8495a7;border-radius:22px;box-shadow:0 16px 35px #0009,inset 0 2px 4px #ffffff22}
+button,input{font-size:17px;border-radius:12px;padding:13px;margin:6px}
+button{border:1px solid #ffe9a0;background:linear-gradient(145deg,#fff1a5,#f2b52c,#b86b13);font-weight:bold;box-shadow:0 5px 0 #70400d;cursor:pointer}
+button:active{transform:translateY(4px);box-shadow:0 1px 0 #70400d}
+input{width:min(90%,390px);border:1px solid #aaa;background:#fff;color:#111}
+.hidden{display:none!important}
+#roomCode{font-size:16px;overflow-wrap:anywhere;color:#ffe17b;font-weight:bold}
+#status{color:#ffe17b;min-height:26px}
+.table{max-width:850px;margin:18px auto;padding:20px 10px 28px;border:9px solid #98663a;border-radius:45% / 18%;background:radial-gradient(ellipse,#27734f,#0c3429);box-shadow:0 12px 0 #4c2f1d,0 22px 35px #000b,inset 0 0 30px #001b13}
+.piles{display:flex;align-items:center;justify-content:center;gap:35px;min-height:160px}
+.card{position:relative;width:78px;height:118px;border:4px solid white;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:27px;font-weight:900;color:white;text-shadow:1px 2px 3px #333;box-shadow:0 8px 14px #0009,inset 0 0 0 3px #ffffff35;overflow:hidden;transform:perspective(500px) rotateY(-6deg);animation:deal .25s ease-out}
+.card:before{content:"";position:absolute;width:135%;height:65%;border:4px solid #ffffffa8;border-radius:50%;transform:rotate(-35deg)}
+.card span{position:relative;z-index:1}
+.red{background:linear-gradient(135deg,#ff7777,#d20b20 60%,#71091a)}
+.blue{background:linear-gradient(135deg,#70caff,#1266d5 60%,#092e78)}
+.green{background:linear-gradient(135deg,#8cf5a1,#159447 60%,#07502b)}
+.yellow{background:linear-gradient(135deg,#fff18c,#e9b817 60%,#9b6200);color:#30200a;text-shadow:none}
+.wild{background:conic-gradient(#e72a35 0 25%,#2276eb 0 50%,#20a957 0 75%,#edc42c 0)}
+.hand{display:flex;justify-content:center;flex-wrap:wrap;gap:7px;min-height:125px;padding:12px 0}
+.hand .card{width:62px;height:94px;font-size:22px;cursor:pointer;transition:.2s}
+.hand .card.active:hover{transform:translateY(-14px) scale(1.04)}
+.hand .card.disabled{opacity:.45;cursor:default}
+@keyframes deal{from{opacity:0;transform:translateY(45px) rotate(-12deg) scale(.7)}to{opacity:1}}
+#message{color:#ffe17b;font-size:18px;min-height:28px;font-weight:bold}
+#colors{display:flex;justify-content:center;gap:12px}
+.colorPick{width:65px;height:65px;border:4px solid white;border-radius:15px}
+.colorPick.red{background:#d71930}.colorPick.blue{background:#1768d5}.colorPick.green{background:#159447}.colorPick.yellow{background:#e9bd20}
+.small{color:#bdcbd9;font-size:14px}
+</style>
+</head>
+<body>
+<h1>ABO</h1>
+<div class="small">ONLINE CARD ARENA</div>
+
+<section id="lobby" class="panel">
+ <h2>ABO ONLINE</h2>
+ <p>Sevgilinle aynı masada buluş! ❤️</p>
+ <button onclick="createRoom()">ODA OLUŞTUR</button>
+ <hr style="border-color:#ffffff22;margin:22px">
+ <p>Sevgilinin gönderdiği oda kodunu gir:</p>
+ <input id="joinCode" placeholder="Oda kodunu buraya yapıştır">
+ <br>
+ <button onclick="joinRoom()">ODAYA KATIL</button>
+ <p id="status">Bağlantı bekleniyor.</p>
+ <div id="hostCodeArea" class="hidden">
+  <p>Sevgiline bu kodu gönder:</p>
+  <div id="roomCode"></div>
+  <button onclick="copyCode()">KODU KOPYALA</button>
+ </div>
+</section>
+
+<section id="game" class="hidden">
+ <div class="panel">
+  <h2 id="turnTitle">Oyun masası</h2>
+  <div id="opponentInfo" class="small"></div>
+  <div class="table">
+   <div class="piles">
+    <div><div class="small">ÇEKME DESTEĞİ</div><div class="card wild"><span>ABO</span></div></div>
+    <div><div class="small">MASADAKİ KART</div><div id="topCard"></div></div>
+   </div>
+   <div id="message">Oyun başlıyor!</div>
+   <div id="colorArea" class="hidden">
+    <p>Bir renk seç:</p>
+    <div id="colors">
+     <button class="colorPick red" onclick="sendAction('color','red')"></button>
+     <button class="colorPick blue" onclick="sendAction('color','blue')"></button>
+     <button class="colorPick green" onclick="sendAction('color','green')"></button>
+     <button class="colorPick yellow" onclick="sendAction('color','yellow')"></button>
+    </div>
+   </div>
+   <button id="drawButton" onclick="sendAction('draw')" disabled>KART ÇEK</button>
+   <button id="unoButton" onclick="sendAction('uno')">ABO!</button>
+  </div>
+  <h2>SENİN KARTLARIN</h2>
+  <div id="hand" class="hand"></div>
+  <div id="myCount" class="small"></div>
+  <button onclick="location.reload()">MENÜYE DÖN</button>
+ </div>
+</section>
+
+<script>
+let peer=null,conn=null,isHost=false,myIndex=-1,state=null;
+const $=id=>document.getElementById(id);
+const colors=["red","blue","green","yellow"];
+function status(t){$("status").textContent=t}
+function createRoom(){
+ if(!window.Peer){status("Bağlantı kütüphanesi yüklenemedi. Sayfayı yenile.");return}
+ status("Oda hazırlanıyor...");
+ isHost=true;peer=new Peer();
+ peer.on("open",id=>{
+  $("hostCodeArea").classList.remove("hidden");
+  $("roomCode").textContent=id;
+  status("Oda hazır! Sevgilinin katılması bekleniyor.");
+ });
+ peer.on("connection",c=>{
+  if(conn){c.close();return}
+  conn=c;myIndex=0;
+  setupConnection();
+ });
+ peer.on("error",e=>status("Bağlantı hatası: "+e.type));
+}
+function copyCode(){
+ const code=$("roomCode").textContent;
+ if(navigator.clipboard&&navigator.clipboard.writeText){
+  navigator.clipboard.writeText(code).then(()=>status("Oda kodu kopyalandı!"));
+ }else{
+  status("Kodu basılı tutup kopyalayabilirsin.");
+ }
+}
+function joinRoom(){
+ const id=$("joinCode").value.trim();
+ if(!id){status("Önce oda kodunu gir.");return}
+ if(!window.Peer){status("Bağlantı kütüphanesi yüklenemedi.");return}
+ status("Odaya bağlanılıyor...");
+ isHost=false;myIndex=1;peer=new Peer();
+ peer.on("open",()=>{conn=peer.connect(id);setupConnection()});
+ peer.on("error",e=>status("Bağlantı hatası: "+e.type));
+}
+function setupConnection(){
+ conn.on("open",()=>{
+  status("Bağlandın! Oyun hazırlanıyor.");
+  if(isHost){startHostGame()}
+ });
+ conn.on("data",msg=>{
+  if(isHost){
+   if(msg.type==="action")handleAction(1,msg.action,msg.value);
+  }else if(msg.type==="state"){
+   state=msg.state;showGame();
+  }else if(msg.type==="start"){
+   state=msg.state;showGame();
+  }
+ });
+ conn.on("close",()=>{status("Diğer oyuncunun bağlantısı kesildi.")});
+ conn.on("error",()=>{status("Bağlantıda sorun oluştu.")});
+}
+function makeDeck(){
+ let d=[];
+ colors.forEach(color=>{
+  for(let n=0;n<=9;n++){d.push({color,value:""+n});if(n)d.push({color,value:""+n})}
+  ["+2","↻","PAS"].forEach(v=>{d.push({color,value:v},{color,value:v})});
+ });
+ for(let i=0;i<4;i++){d.push({color:"wild",value:"RENK"},{color:"wild",value:"+4"})}
+ return d.sort(()=>Math.random()-.5);
+}
+function drawFrom(s){
+ if(!s.deck.length){
+  const top=s.discard.pop();s.deck=s.discard;s.discard=[top];
+  s.deck.sort(()=>Math.random()-.5);
+ }
+ return s.deck.pop();
+}
+function startHostGame(){
+ const s={deck:makeDeck(),hands:[[],[]],discard:[],turn:0,direction:1,currentColor:"",pendingColor:false,over:false,message:"Oyun başladı!"};
+ for(let p=0;p<2;p++)for(let i=0;i<7;i++)s.hands[p].push(drawFrom(s));
+ let first=drawFrom(s);while(first.color==="wild"){s.deck.push(first);first=drawFrom(s)}
+ s.discard.push(first);s.currentColor=first.color;
+ state=s;broadcast("start");
+}
+function broadcast(type="state"){
+ if(isHost&&conn&&conn.open)conn.send({type,state});
+ showGame();
+}
+function showGame(){
+ $("lobby").classList.add("hidden");$("game").classList.remove("hidden");
+ if(!state)return;
+ const s=state,top=s.discard[s.discard.length-1],myTurn=s.turn===myIndex;
+ $("turnTitle").textContent=myTurn?"SIRA SENDE!":"DİĞER OYUNCUNUN SIRASI";
+ $("opponentInfo").textContent="Rakibin: "+s.hands[1-myIndex].length+" kart";
+ $("topCard").innerHTML="";
+ $("topCard").appendChild(makeCardElement(top,false));
+ $("hand").innerHTML="";
+ s.hands[myIndex].forEach((card,i)=>{
+  const el=makeCardElement(card,myTurn&&!s.pendingColor);
+  if(myTurn&&!s.pendingColor)el.onclick=()=>sendAction("play",i);
+  else el.classList.add("disabled");
+  $("hand").appendChild(el);
+ });
+ $("myCount").textContent="Elinde "+s.hands[myIndex].length+" kart var.";
+ $("message").textContent=s.message||"";
+ $("drawButton").disabled=!myTurn||s.pendingColor||s.over;
+ $("unoButton").disabled=!myTurn||s.hands[myIndex].length!==1||s.over;
+ $("colorArea").classList.toggle("hidden",!s.pendingColor||!myTurn);
+}
+function makeCardElement(card,active){
+ const el=document.createElement("div");
+ el.className="card "+card.color+(active?" active":"");
+ const span=document.createElement("span");span.textContent=card.value;el.appendChild(span);return el;
+}
+function sendAction(action,value){
+ if(!conn||!conn.open)return;
+ if(isHost)handleAction(0,action,value);
+ else conn.send({type:"action",action,value});
+}
+function nextTurn(s,skip=false){
+ s.turn=(s.turn+(skip?2:1)*s.direction+4)%2;
+}
+function handleAction(player,action,value){
+ const s=state;if(!s||s.over||player!==s.turn)return;
+ if(action==="play"){
+  if(s.pendingColor)return;
+  const card=s.hands[player][value],top=s.discard[s.discard.length-1];
+  if(!card)return;
+  if(!(card.color==="wild"||card.color===s.currentColor||card.value===top.value))return;
+  s.hands[player].splice(value,1);s.discard.push(card);
+  s.message="Oyuncu "+(player+1)+" kart attı!";
+  if(s.hands[player].length===0){
+   s.over=true;s.message="OYUNCU "+(player+1)+" KAZANDI! 🏆";
+   broadcast();return;
+  }
+  if(card.color==="wild"){s.pendingColor=true;broadcast();return}
+  applyCard(s,card);
+ }else if(action==="color"&&s.pendingColor){
+  if(!colors.includes(value))return;
+  s.currentColor=value;s.pendingColor=false;
+  const card=s.discard[s.discard.length-1];
+  if(card.value==="+4")for(let i=0;i<4;i++)s.hands[1-player].push(drawFrom(s));
+  nextTurn(s,card.value==="+4");
+  s.message="Renk "+value.toUpperCase()+" oldu!";
+ }else if(action==="draw"){
+  if(s.pendingColor)return;
+  s.hands[player].push(drawFrom(s));
+  s.message="Oyuncu "+(player+1)+" kart çekti.";
+  nextTurn(s);
+ }else if(action==="uno"){
+  if(s.hands[player].length!==1)return;
+  s.message="ABOOOO! Oyuncu "+(player+1)+" UNO dedi!";
+ }
+ broadcast();
+}
+function applyCard(s,card){
+ if(card.value==="+2"){
+  for(let i=0;i<2;i++)s.hands[1-s.turn].push(drawFrom(s));
+  nextTurn(s,true);
+ }else if(card.value==="PAS"){
+  nextTurn(s,true);
+ }else if(card.value==="↻"){
+  s.direction*=-1;nextTurn(s);
+ }else nextTurn(s);
+}
+</script>
+</body>
+</html>
+ 
